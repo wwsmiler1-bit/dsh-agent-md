@@ -84,7 +84,7 @@ git clone https://github.com/wwsmiler1-bit/dsh-agent-md.git "<DSH_HOME>\plugins\
 $node = "<DSH_HOME>\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin\node.exe"
 # 宿主自带的 node 不一定在这个路径，任意 Node 20+ 都能跑下面的脚本
 
-# 单元 + 冒烟测试（29 项：人格合成/优先级/API/客户端 bundle 注册）
+# 单元 + 冒烟测试（38 项：人格合成/优先级/API/客户端 bundle 注册/渲染与错误边界）
 & $node --test "tests/*.test.js"
 
 # 启动安全预检：逐个验证 profile 里每个 bundle 能否加载
