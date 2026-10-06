@@ -1,0 +1,50 @@
+{
+  "name": "dsh-agent-md",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "AGENT.md 人格配置 —— 像 VS Code 那样用 Markdown 配置模型人格/性格：全局一份 + 每个项目一份（项目覆盖全局），可在设置页可视化编辑，也能一键打开原文件。",
+  "keywords": [
+    "deepseek",
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "agent",
+    "persona",
+    "agent-md"
+  ],
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "react": "^18.3.1"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": []
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/smiler/dsh-agent-md.git"
+  },
+  "homepage": "https://github.com/smiler/dsh-agent-md#readme",
+  "bugs": {
+    "url": "https://github.com/smiler/dsh-agent-md/issues"
+  },
+  "license": "MIT"
+}
