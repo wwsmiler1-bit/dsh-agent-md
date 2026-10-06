@@ -40,11 +40,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/smiler/dsh-agent-md.git"
+    "url": "git+https://github.com/wwsmiler1-bit/dsh-agent-md.git"
   },
-  "homepage": "https://github.com/smiler/dsh-agent-md#readme",
+  "homepage": "https://github.com/wwsmiler1-bit/dsh-agent-md#readme",
   "bugs": {
-    "url": "https://github.com/smiler/dsh-agent-md/issues"
+    "url": "https://github.com/wwsmiler1-bit/dsh-agent-md/issues"
   },
   "license": "MIT"
 }

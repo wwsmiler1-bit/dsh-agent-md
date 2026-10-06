@@ -57,7 +57,7 @@
 
 ```powershell
 # <DSH_HOME> 一般是 C:\Users\<你>\.dsh（跟 DSH_HOME 环境变量走）
-git clone https://github.com/smiler/dsh-agent-md.git "<DSH_HOME>\plugins\dsh-agent-md"
+git clone https://github.com/wwsmiler1-bit/dsh-agent-md.git "<DSH_HOME>\plugins\dsh-agent-md"
 ```
 
 ### 挂进 profile（本地 link 方式）
