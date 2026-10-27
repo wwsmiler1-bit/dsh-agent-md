@@ -489,6 +489,35 @@ test('dsh-agent-md 全量行为', async (t) => {
     })
   })
 
+  await t.test('注入留痕：同一份内容连续装配多轮，只记一行（去重比指纹不比时间戳）', async () => {
+    const { ctx, sections } = makeCtx()
+    plugin.apply(ctx)
+    const ws = makeWorkspace('dedup-probe')
+    writeTextFile(globalPath(), '# 去重探针人格')
+
+    const def = sections[0]
+    // 真实会话里两轮之间隔几秒；测试若在同一毫秒内跑完，时间戳会撞车，
+    // 旧实现（比整行）也能侥幸通过——必须显式拉开时间，才测得出这个 bug。
+    const call = async () => {
+      const text = await def.text({ agent: { session: { header: { cwd: ws } } } })
+      await new Promise((r) => setTimeout(r, 5))
+      return text
+    }
+
+    await call()
+    const afterFirst = readFileSync(join(agentsRoot(), 'inject-log.jsonl'), 'utf8').trim().split('\n').length
+    await call()
+    await call()
+    const afterThird = readFileSync(join(agentsRoot(), 'inject-log.jsonl'), 'utf8').trim().split('\n').length
+    assert.equal(afterThird, afterFirst, '同一份内容连注入三轮，日志只能有一行')
+
+    // 内容真的变了还是要记
+    writeTextFile(globalPath(), '# 去重探针人格（改了一版）')
+    await call()
+    const afterChange = readFileSync(join(agentsRoot(), 'inject-log.jsonl'), 'utf8').trim().split('\n').length
+    assert.equal(afterChange, afterFirst + 1, '内容变了必须新增一行')
+  })
+
   await t.test('API：页面拿不到 session id 时，用最近活跃会话的工作目录兜底', async () => {
     const { ctx, registered } = makeCtx()
     const ws = makeWorkspace('recent-fallback')
