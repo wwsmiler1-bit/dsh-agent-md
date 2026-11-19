@@ -15,7 +15,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, mkdirSync, existsSync, readFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, existsSync, readFileSync, unlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -59,11 +59,14 @@ function makeCtx() {
   return { ctx, registered, sections }
 }
 
-/** 跑一次路由：伪造 req/res，拿回 { status, body }。 */
-async function callRoute(route, { method = 'GET', url = '/', body = null } = {}) {
+/** 跑一次路由：伪造 req/res，拿回 { status, body }。默认模拟合法的同源 JSON 请求。 */
+const TEST_HOST = '127.0.0.1:19387'
+async function callRoute(route, { method = 'GET', url = '/', body = null, headers } = {}) {
   const req = {
     method,
     url,
+    // issue #4 加了同源闸与 Content-Type 闸：测试替身默认带上合法头（显式传 headers 可覆盖，用于测拒绝路径）
+    headers: headers ?? { origin: `http://${TEST_HOST}`, host: TEST_HOST, 'content-type': 'application/json' },
     on(event, cb) {
       if (event === 'data' && body !== null) cb(Buffer.from(JSON.stringify(body), 'utf8'))
       if (event === 'end') cb()
@@ -469,6 +472,55 @@ test('dsh-agent-md 全量行为', async (t) => {
     assert.equal(typeof body.bridge.build, 'string')
   })
 
+  await t.test('API：安全闸——跨源 403、非 JSON POST 415、非法 localNames 被拒（issue #4）', async () => {
+    const { ctx, registered } = makeCtx()
+    plugin.apply(ctx)
+    const route = registered.find((r) => r.path === '/api/agent-md')
+
+    // ① 跨源 Origin → 403，且不执行任何逻辑
+    const cross = await callRoute(route, {
+      method: 'POST', url: '/api/agent-md/config', body: { enabled: false },
+      headers: { origin: 'http://evil.example', host: TEST_HOST, 'content-type': 'application/json' },
+    })
+    assert.equal(cross.status, 403)
+
+    // ② Sec-Fetch-Site: cross-site → 403（即使没有 Origin 头）
+    const site = await callRoute(route, {
+      url: '/api/agent-md/state',
+      headers: { 'sec-fetch-site': 'cross-site', host: TEST_HOST },
+    })
+    assert.equal(site.status, 403)
+
+    // ③ text/plain 简单请求（不触发 CORS 预检的那种）：同源 → 415；跨源 + text/plain → 403（来源闸先拦，更严格也对）
+    const plain = await callRoute(route, {
+      method: 'POST', url: '/api/agent-md/save', body: { scope: 'global', content: '劫持' },
+      headers: { origin: `http://${TEST_HOST}`, host: TEST_HOST, 'content-type': 'text/plain;charset=UTF-8' },
+    })
+    assert.equal(plain.status, 415)
+    const crossPlain = await callRoute(route, {
+      method: 'POST', url: '/api/agent-md/save', body: { scope: 'global', content: '劫持' },
+      headers: { origin: 'http://evil.example', host: TEST_HOST, 'content-type': 'text/plain;charset=UTF-8' },
+    })
+    assert.equal(crossPlain.status, 403)
+
+    // ④ 合法同源 JSON 但 localNames 含非法名 → 全部丢弃回默认白名单
+    const bad = await callRoute(route, {
+      method: 'POST', url: '/api/agent-md/config',
+      body: { localNames: ['_evil.bat', 'authorized_keys', '../AGENT.md'] },
+    })
+    assert.equal(bad.status, 200)
+    assert.deepEqual(bad.body.config.localNames, ['AGENT.md'], '非 .md / 越权文件名必须被白名单挡掉')
+
+    // ⑤ 合法的 .md 名字放行
+    const good = await callRoute(route, {
+      method: 'POST', url: '/api/agent-md/config',
+      body: { localNames: ['AGENT.md', 'CLAUDE.md'] },
+    })
+    assert.deepEqual(good.body.config.localNames, ['AGENT.md', 'CLAUDE.md'])
+    try { unlinkSync(statePath()) } catch {}
+    plugin.__resetConfigForTest()
+  })
+
   await t.test('API：两个开关都关时，结论要直说「不会注入任何人格」', async () => {
     const { ctx, registered } = makeCtx()
     plugin.apply(ctx)
@@ -481,12 +533,9 @@ test('dsh-agent-md 全量行为', async (t) => {
     const { body } = await callRoute(route, { url: '/api/agent-md/state' })
     assert.equal(body.effective.kind, 'none')
     assert.ok(body.effective.label.includes('两个开关'), '必须点破配置错误，而不是说「还没写人格」')
-    // 复原，别影响后面的用例
-    await callRoute(route, {
-      method: 'POST',
-      url: '/api/agent-md/config',
-      body: { enabled: true, includeGlobal: true, projectPersonaEnabled: true },
-    })
+    // 复原，别影响后面的用例（先清掉磁盘状态，再让 loadConfig 回默认）
+    try { unlinkSync(statePath()) } catch {}
+    plugin.__resetConfigForTest()
   })
 
   await t.test('API：页面拿不到 session id 时，用最近活跃会话的工作目录兜底', async () => {

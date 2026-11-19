@@ -1,6 +1,6 @@
 {
   "name": "dsh-agent-md",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "description": "AGENT.md 人格配置 —— 像 VS Code 那样用 Markdown 配置模型人格/性格：全局一份 + 每个项目一份（项目覆盖全局），可在设置页可视化编辑，也能一键打开原文件。",
@@ -35,7 +35,8 @@
     },
     "client": {
       "platform": "web",
-      "inject": []
+      "inject": [],
+      "external": ["react"]
     }
   },
   "repository": {
